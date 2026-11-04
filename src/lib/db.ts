@@ -84,11 +84,12 @@ export function newProfile(): Profile {
 }
 
 export function newRouting(): Record<TaskKind, TaskRoute> {
-  const keys: TaskKind[] = ['extraction', 'matching', 'resume', 'cover_letter', 'answers', 'insights']
   const out = {} as Record<TaskKind, TaskRoute>
-  for (const k of keys) out[k] = { provider_id: null, model: null }
+  for (const k of TASK_KEYS) out[k] = { provider_id: null, model: null }
   return out
 }
+
+const TASK_KEYS: TaskKind[] = ['extraction', 'matching', 'resume', 'cover_letter', 'answers', 'insights', 'resume_import']
 
 /** first-run bootstrap: seeds provider rows + profile + settings, keeps existing data */
 export async function ensureDefaults() {

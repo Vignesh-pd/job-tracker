@@ -1,10 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { db, ensureDefaults, DEFAULT_SETTINGS, newRouting } from './lib/db'
 import type { AppDoc, AppStatus, Application, Job, KVSettings, Profile, ProviderRow, StatusHistory, TaskKind, TaskRoute, DocType } from './lib/types'
 import { uid, TODAY, downloadBlob } from './lib/utils'
-import { applicationsToCsv, parseCsvFile, rowsToApplications, type CsvRow } from './lib/csv'
+import { parseCsvFile, rowsToApplications, applicationsToCsv, type CsvRow } from './lib/csv'
 import { exportBackup, importBackup, clearAllData as wipeData } from './lib/backup'
-import { loadDemoData } from './lib/seed'
 
 /* ---------------- toasts ---------------- */
 
@@ -132,8 +131,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
   const dismissToast = (id: string) => setToasts((t) => t.filter((x) => x.id !== id))
 
-  /* ---- derived ---- */
-  const apps: AppRow[] = appsRaw.map((a) => ({ ...a, job: jobs.find((j) => j.id === a.job_id) }))
+  /* ---- derived (memoised: stable identities so consumers' useMemo deps don't thrash) ---- */
+  const jobMap = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs])
+  const apps: AppRow[] = useMemo(() => appsRaw.map((a) => ({ ...a, job: jobMap.get(a.job_id as number) })), [appsRaw, jobMap])
 
   /* ---- profile ---- */
   const saveProfile = async (p: Profile) => {
@@ -307,17 +307,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { inserted: parsed.rows.length, preview: parsed }
   }
   const commitCsvImport = async (rows: CsvRow[]) => {
-    let count = 0
-    for (const { application } of rowsToApplications(rows)) {
-      const id = await db.applications.add(application as Application)
-      await db.history.add({ application_id: id, to_status: application.status, changed_at: Date.now() })
-      count++
-    }
+    const parsed = rowsToApplications(rows)
+    // one bulk write instead of a round-trip per row
+    await db.transaction('rw', db.applications, db.history, async () => {
+      const ids = await db.applications.bulkAdd(parsed.map((p) => p.application as Application), { allKeys: true })
+      const now = Date.now()
+      await db.history.bulkAdd(
+        ids.map((id, i) => ({ application_id: id as number, to_status: parsed[i].application.status as AppStatus, changed_at: now + i })),
+      )
+    })
     await refreshApps()
-    return count
+    return parsed.length
   }
-  const exportCsv = () => {
-    downloadBlob(applicationsToCsv(apps), `applications-${TODAY()}.csv`, 'text/csv')
+  const exportCsv = async () => {
+    downloadBlob(await applicationsToCsv(apps), `applications-${TODAY()}.csv`, 'text/csv')
   }
   const exportBackupFile = async () => {
     await exportBackup()
@@ -333,6 +336,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await reloadEverything()
   }
   const installDemo = async () => {
+    const { loadDemoData } = await import('./lib/seed')
     await loadDemoData()
     await reloadEverything()
   }

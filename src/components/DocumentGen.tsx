@@ -53,11 +53,17 @@ export function DocumentGenModal({ open, onClose, app, type }: { open: boolean; 
       return
     }
     setBusy(true)
+    setContent('')
+    setGeneratedBy(null)
     try {
       if (type === 'resume') {
-        setContent(await runResume(cfg, profile, app.job!))
+        const { text, label } = await runResume(cfg, profile, app.job!, (partial) => setContent(partial))
+        setContent(text)
+        setGeneratedBy(label)
       } else if (type === 'cover_letter') {
-        setContent(await runCoverLetter(cfg, profile, app.job!, instructions || undefined))
+        const { text, label } = await runCoverLetter(cfg, profile, app.job!, instructions || undefined, (partial) => setContent(partial))
+        setContent(text)
+        setGeneratedBy(label)
       } else {
         const qs = questions.split('\n').map((q) => q.trim()).filter(Boolean)
         if (!qs.length) throw new Error('Add at least one question (one per line).')
@@ -65,7 +71,6 @@ export function DocumentGenModal({ open, onClose, app, type }: { open: boolean; 
         setContent(data.map((a, i) => `### Q${i + 1}: ${a.question}\n\n${a.answer}`).join('\n\n'))
         setGeneratedBy(label)
       }
-      if (type !== 'answers') setGeneratedBy(`${cfg.name} · ${cfg.model.replace(/^models\//, '')}`)
     } catch (e) {
       toast('error', 'Generation failed', (e as Error).message)
     } finally {
@@ -130,7 +135,7 @@ export function DocumentGenModal({ open, onClose, app, type }: { open: boolean; 
           />
         )}
 
-        {busy && (
+        {busy && !content && (
           <div className="flex flex-col items-center gap-3 py-14">
             <div className="flex gap-1.5">
               {[0, 1, 2].map((i) => (
@@ -141,8 +146,13 @@ export function DocumentGenModal({ open, onClose, app, type }: { open: boolean; 
           </div>
         )}
 
-        {!busy && content && (
+        {content && (
           <div className="space-y-3">
+            {busy && (
+              <div className="flex items-center gap-2 rounded-xl border border-brand-200 dark:border-brand-500/30 bg-brand-50/60 dark:bg-brand-500/10 px-3 py-2 text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+                <RefreshCw className="size-3.5 animate-spin" /> Streaming live from {cfg?.name ?? 'the model'} — editable when finished
+              </div>
+            )}
             <div className="flex items-center justify-between rounded-t-2xl border border-b-0 border-ink-200 dark:border-ink-800 bg-ink-50 dark:bg-ink-800/50 px-4 py-2">
               <p className="text-[11px] font-semibold text-ink-500 dark:text-ink-300">
                 {generatedBy ? (
@@ -153,25 +163,29 @@ export function DocumentGenModal({ open, onClose, app, type }: { open: boolean; 
                   'Draft (not saved yet)'
                 )}
               </p>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="xs" onClick={() => copyText(content).then(() => toast('success', 'Copied to clipboard'))}>
-                  <Copy className="size-3.5" /> Copy
-                </Button>
-                <Button variant="ghost" size="xs" onClick={() => downloadBlob(content, docFileNameFor(app, type), 'text/markdown')}>
-                  <Download className="size-3.5" /> .md
-                </Button>
-                <Button variant="ghost" size="xs" onClick={() => printDoc(content)}>
-                  <Printer className="size-3.5" /> PDF
+              {!busy && (
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="xs" onClick={() => copyText(content).then(() => toast('success', 'Copied to clipboard'))}>
+                    <Copy className="size-3.5" /> Copy
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => downloadBlob(content, docFileNameFor(app, type), 'text/markdown')}>
+                    <Download className="size-3.5" /> .md
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => printDoc(content)}>
+                    <Printer className="size-3.5" /> PDF
+                  </Button>
+                </div>
+              )}
+            </div>
+            <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-72 font-mono text-[12.5px]" spellCheck readOnly={busy} />
+            {!busy && (
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] text-ink-400">Editable draft — edit freely, then save.</p>
+                <Button size="sm" onClick={save}>
+                  <Save className="size-3.5" /> Save to application
                 </Button>
               </div>
-            </div>
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-72 font-mono text-[12.5px]" spellCheck />
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] text-ink-400">Editable draft — edit freely, then save.</p>
-              <Button size="sm" onClick={save}>
-                <Save className="size-3.5" /> Save to application
-              </Button>
-            </div>
+            )}
           </div>
         )}
 

@@ -28,6 +28,13 @@ npm run dev      # → http://localhost:5173
 1. **Profile** page — add your name, contact links, skills (level per skill),
    experience bullets, education, summary, and optionally paste your master
    resume. This is the *only* fact source documents may ever use.
+
+   → **Shortcut:** drop your existing resume (PDF / DOCX / TXT / MD / RTF)
+   into **“Import from resume”**. JobPilot extracts name, contacts, links,
+   skills, experience and education into the profile — with a review step
+   before anything is applied. With an AI provider configured it parses the
+   whole document; without one it still grabs contacts and stores the full
+   text under *Master resume*.
 2. **Settings → AI providers** — click a provider card, paste a **free API
    key**, hit **Save key**, then **Test connection** (shows latency):
    | Provider | Free key source |
@@ -59,10 +66,11 @@ scoring) — AI just makes it fast.
 | Dashboard | Stat cards (tracked / in flight / interviews / offers / rejected), pipeline bar, follow-up reminders (auto 7-day suggestion, overdue warnings), activity feed |
 | Applications | Table + **Kanban board with drag-and-drop status changes**, search, status filter chips, sorting, tags, manual add, **CSV import with preview** + export, full status history per application |
 | Analyzer | Paste JD (URL optional) → AI extraction (zod-validated JSON, retry on failure) → match score with strong matches + skill gaps → save as tracked application; per-run model override chip |
-| Documents | Tailored resume / cover letter / application answers; facts-only prompts; editable draft before saving; versioning; copy / download `.md` / print-to-PDF; regenerate with another model |
-| Profile | Master profile with autosave: skills by category & level, experience with bullets & tech, education, certs, projects, languages, master resume; “Copy AI payload” for manual use in any chatbot |
+| Documents | Tailored resume / cover letter / application answers; facts-only prompts; **streamed generation (text appears as it's written)**; editable draft before saving; versioning; copy / download `.md` / print-to-PDF; regenerate with another model |
+| Profile | Master profile with autosave: skills by category & level, experience with bullets & tech, education, certs, projects, languages, master resume; **resume upload import** (PDF/DOCX/TXT/MD/RTF → auto-fill with review, AI or local fallback); “Copy AI payload” for manual use in any chatbot |
 | Settings | AI provider cards (masked keys, reveal, test connection, enable toggle, privacy notes), task routing with presets, **JSON backup export/restore (merge or replace)**, CSV export, demo data, clear all |
 | Design | Light/dark mode, responsive, hash routing — deployed `dist` works from any static host |
+| **Installable PWA** | Service worker + web manifest (`vite-plugin-pwa`) — install JobPilot from your browser and it works **offline**; precaches the whole app, updates itself on new deploys |
 
 ## Data & privacy
 
@@ -97,15 +105,21 @@ Providers/keys are kept out of backups.
 
 ## Tech
 
-React 19 · Vite · TypeScript · Tailwind v4 · Dexie (IndexedDB) ·
-Zod (AI output validation) · lucide icons · PapaParse.
+React 19 · Vite 8 (Rolldown) · TypeScript · Tailwind v4 · Dexie (IndexedDB) ·
+Zod (AI output validation) · lucide icons · pdf.js + fflate (resume import).
 
 AI layer: one `LLMProvider` interface with adapters — Gemini,
-OpenAI-compatible (configurable base URL), Anthropic, Ollama. Each task can
-route to a different provider/model; every generated document records
-provider + model. Reads as the browser-native realisation of the phased
-"JobPilot v2" plan (tracker, profile+AI settings, analyzer, documents,
-follow-ups); analytics & portal automation are future work.
+OpenAI-compatible (configurable base URL), Anthropic, Ollama — each with SSE
+streaming. Tasks route to different providers/models; every generated document
+records provider + model. Heavy libraries (zod, PapaParse, pdf.js, demo seed)
+are code-split and loaded only when the relevant feature is used.
+
+## Performance notes
+
+- First-load JS ≈ 155 kB gzip (React + Dexie + app code); PDF parsing (pdf.js),
+  JSON validation (zod), CSV parsing and the demo dataset load on demand.
+- Profile joins are memoised (O(1) map lookups); package/CSV writes are bulk.
+- MIT-licensed — see [LICENSE](LICENSE).
 
 ## Notes / limitations
 

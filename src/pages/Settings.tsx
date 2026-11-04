@@ -483,6 +483,7 @@ const TASK_NEED: Record<TaskKind, string> = {
   cover_letter: 'Strong writing',
   answers: 'Strong writing',
   insights: 'Mid-tier',
+  resume_import: 'Medium, good at structure',
 }
 
 const FREE_SOURCES = [

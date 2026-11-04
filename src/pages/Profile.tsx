@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Profile } from '../lib/types'
 import { useStore } from '../store'
 import { Button, Card, Field, Input, Select, Textarea, SectionHeader } from '../components/ui'
+import { ResumeImport } from '../components/ResumeImport'
 import { blankCert, blankEducation, blankExperience, blankProject } from '../lib/db'
 import { copyText, downloadBlob, debounce } from '../lib/utils'
-import { profilePromptJson } from '../lib/ai/tasks'
+import { profilePromptJson } from '../lib/ai/prompts'
 import { BadgeCheck, Sparkles, Trash2, Download, Plus, Eye } from 'lucide-react'
 
 const SKILL_CATEGORIES = ['Languages', 'Databases', 'Data Engineering', 'Data Science', 'AI & LLM', 'Cloud & DevOps', 'Visualisation', 'Business', 'Other']
@@ -63,6 +64,17 @@ export function ProfilePage() {
           </Button>
         </div>
       </div>
+
+      {/* resume import */}
+      <ResumeImport
+        draft={draft}
+        onApply={(merged) => {
+          // set() would only patch part of it — assign the whole merged profile
+          setDraft(merged)
+          push(merged)
+          setSavedAt(new Date().toLocaleTimeString())
+        }}
+      />
 
       {/* personal */}
       <Card className="p-5">

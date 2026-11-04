@@ -1,10 +1,19 @@
-import Papa from 'papaparse'
 import type { AppStatus, Application } from './types'
 import { parseAnyDate, addDays, TODAY } from './utils'
 
+/* papaparse is loaded on demand so it stays out of the first-load bundle */
+type PapaModule = typeof import('papaparse')
+
+let papaPromise: Promise<PapaModule> | null = null
+function papa(): Promise<PapaModule> {
+  papaPromise ??= import('papaparse')
+  return papaPromise
+}
+
 /* ---------------- export ---------------- */
 
-export function applicationsToCsv(apps: Application[]): string {
+export async function applicationsToCsv(apps: Application[]): Promise<string> {
+  const Papa = await papa()
   const header = ['company', 'title', 'status', 'applied_on', 'source', 'match_score', 'follow_up_on', 'url', 'tags', 'notes']
   const rows = apps.map((a) =>
     [a.company, a.title, a.status, a.applied_on ?? '', a.source ?? '', a.match_score ?? '', a.follow_up_on ?? '', a.url ?? '', a.tags.join(';'), a.notes.replace(/\n+/g, ' ')],
@@ -57,6 +66,7 @@ function normalizeStatus(v: string): AppStatus {
 }
 
 export async function parseCsvFile(file: File): Promise<{ headers: string[]; rows: CsvRow[] }> {
+  const Papa = await papa()
   const text = await file.text()
   const parsed = Papa.parse<Record<string, string>>(text, {
     header: true,

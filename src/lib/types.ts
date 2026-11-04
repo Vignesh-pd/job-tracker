@@ -52,10 +52,13 @@ export interface Project {
   link: string
 }
 
+export const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const
+export type SkillLevel = (typeof SKILL_LEVELS)[number]
+
 export interface Skill {
   name: string
   category: string
-  level: 'beginner' | 'intermediate' | 'advanced' | 'expert'
+  level: SkillLevel
 }
 
 export interface Profile {
@@ -152,7 +155,7 @@ export interface AppDoc {
 /* ---------------- AI providers ---------------- */
 
 /** task routing keys */
-export const TASKS = ['extraction', 'matching', 'resume', 'cover_letter', 'answers', 'insights'] as const
+export const TASKS = ['extraction', 'matching', 'resume', 'cover_letter', 'answers', 'insights', 'resume_import'] as const
 export type TaskKind = (typeof TASKS)[number]
 
 export const TASK_LABEL: Record<TaskKind, string> = {
@@ -162,6 +165,7 @@ export const TASK_LABEL: Record<TaskKind, string> = {
   cover_letter: 'Cover letter',
   answers: 'Application answers',
   insights: 'Career insights',
+  resume_import: 'Profile import (resume)',
 }
 
 export type ProviderKind = 'gemini' | 'openai_compatible' | 'anthropic' | 'ollama'
@@ -228,6 +232,8 @@ export interface AdapterOpts {
   temperature?: number
   maxTokens?: number
   signal?: AbortSignal
+  /** when present, adapters stream and call it repeatedly with the FULL text so far */
+  onDelta?: (partial: string) => void
 }
 
 export interface Adapter {

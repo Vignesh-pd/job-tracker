@@ -23,12 +23,16 @@ export async function generateText(
   task: string,
   cfg: ProviderRow,
   messages: ChatMessage[],
-  opts?: { temperature?: number; maxTokens?: number },
+  opts?: { temperature?: number; maxTokens?: number; onDelta?: (partial: string) => void },
 ): Promise<LLMResult> {
   let lastErr: Error | unknown
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      return await adapterFor(cfg.kind).call(cfg, messages, { temperature: opts?.temperature ?? 0.4, maxTokens: opts?.maxTokens })
+      return await adapterFor(cfg.kind).call(cfg, messages, {
+        temperature: opts?.temperature ?? 0.4,
+        maxTokens: opts?.maxTokens,
+        onDelta: opts?.onDelta,
+      })
     } catch (e) {
       lastErr = e
       const err = e as Error & { status?: number; name?: string }
@@ -88,18 +92,14 @@ export async function generateJson<T>(
 
   for (let attempt = 0; attempt < 2; attempt++) {
     let res: LLMResult
-    try {
-      res = await generateText(
-        task,
-        cfg,
-        attempt === 0
-          ? messages
-          : [...messages, { role: 'user', content: 'Your previous reply was not valid JSON. Re-run. Output ONLY the JSON object, nothing else.' }],
-        opts,
-      )
-    } catch (e) {
-      throw e
-    }
+    res = await generateText(
+      task,
+      cfg,
+      attempt === 0
+        ? messages
+        : [...messages, { role: 'user', content: 'Your previous reply was not valid JSON. Re-run. Output ONLY the JSON object, nothing else.' }],
+      opts,
+    )
     try {
       const parsed = schema.safeParse(looseParse(extractJson(res.text)))
       if (parsed.success) return { data: parsed.data, label: res.label }

@@ -113,7 +113,7 @@ export function ApplicationsPage() {
             size="sm"
             onClick={() => {
               if (!apps.length) return void toast('info', 'Nothing to export yet')
-              downloadBlob(applicationsToCsv(apps), 'jobpilot-applications.csv', 'text/csv')
+              void applicationsToCsv(apps).then((csv) => downloadBlob(csv, 'jobpilot-applications.csv', 'text/csv'))
             }}
           >
             <Download className="size-3.5" /> Export CSV
